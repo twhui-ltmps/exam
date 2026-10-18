@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2 Interactive Quiz – 90Q Syllabus Bank</title>
+  <style>
+    :root{
+      --bg: #f4f7ff;
+      --panel: #ffffff;
+      --border: #1e2a78;
+      --accent: #ff3b3b;
+      --accent2: #0bcc59;
+      --accent3: #ffb000;
+      --text: #1c1c1c;
+      --muted: #6b7280;
+      --btn-bg: #e8ecff;
+      --btn-border: #3b5bd6;
+      --pixel-shadow: 0 0 0 2px var(--border), 0 0 0 4px #00000010;
+      --pixel-inset: inset 0 0 0 2px var(--border), inset 0 0 0 4px #00000010;
+    }
+    html, body { height: 100%; margin: 0; font-family: 'Trebuchet MS', 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    /* Compact Scoreboard */
+    .scoreboard { display: grid; grid-template-columns: repeat(8, minmax(0,1fr)); gap: 6px; padding: 6px; background: #eaf0ff; border-bottom: 4px solid var(--border); box-shadow: var(--pixel-inset); }
+    .team { background: var(--panel); border: 2px solid var(--border); border-radius: 6px; padding: 4px; box-shadow: var(--pixel-shadow); }
+    .team header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .team h4 { margin: 0; font-size: 12px; line-height:1; }
+    .score-badge { font-size: 12px; font-weight: 800; padding: 2px 6px; border:2px solid var(--border); border-radius:6px; background:#fff; min-width:30px; text-align:center; }
+    .controls { display: grid; grid-template-columns: 1fr; gap: 4px; }
+    .row { display: flex; gap: 4px; justify-content: center; }
+    /* Control Buttons */
+    button { font-size: 15px; padding: 6px 8px; border: 2px solid var(--btn-border); background: var(--btn-bg); color: var(--text); border-radius: 4px; cursor: pointer; box-shadow: var(--pixel-shadow); }
+    button:hover { filter: brightness(1.08); }
+    .btn-green { background: #dfffea; border-color: #10b981; color: #065f46; }
+    .btn-red { background: #ffe3e3; border-color: #ef4444; color: #7f1d1d; }
+    .btn-gold { background: #fff6da; border-color: #f59e0b; color: #7c2d12; }
+    .btn-blue { background: #e6f0ff; border-color: #3b82f6; color: #1e3a8a; }
+    /* Layout */
+    .main { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; padding: 12px; flex: 1; min-height: 0; }
+    .question-panel { background: var(--panel); border: 3px solid var(--border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; box-shadow: var(--pixel-shadow); }
+    .qp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .badge { font-size: 15px; padding: 4px 8px; border: 2px solid var(--border); border-radius: 6px; background: #fff; box-shadow: var(--pixel-shadow); }
+    .q-num { font-weight: 700; }
+    /* Context Display */
+    .question-text { font-size: 20px; line-height: 1.5; padding: 8px; border: 2px dashed var(--btn-border); border-radius: 8px; background: #fafcff; min-height: 64px; }
+    .underline { text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
+    /* Inputs & Toolbars */
+    .answer-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
+    .answer-input { font-size: 20px; padding: 8px; border: 2px solid var(--btn-border); border-radius: 6px; flex: 0 0 280px; max-width: 100%; }
+    .btn-group { display:flex; gap:6px; flex-wrap:nowrap; }
+    .hint { margin-top: 8px; font-size: 20px; color: #374151; min-height: 20px; }
+    .feedback { margin-top: 6px; font-size: 20px; font-weight: 700; min-height: 22px; }
+    .good { color: #0f766e; }
+    .bad { color: #b91c1c; }
+    .nav { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .spacer { flex: 1; }
+    .settings { display: flex; gap: 8px; align-items: center; font-size: 15px; }
+    .settings input[type=number] { width: 80px; padding: 4px; border: 2px solid var(--btn-border); border-radius: 6px; }
+    .settings label { display: inline-flex; gap: 6px; align-items: center; }
+    /* Lucky Draw Card */
+    .draw-panel { background: var(--panel); border: 3px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: var(--pixel-shadow); display: flex; flex-direction: column; gap: 8px; }
+    .draw-header h3 { margin: 0; font-size: 20px; }
+    .draw-number { font-size: 28px; font-weight: 900; color: #b45309; text-align: center; padding: 10px; border: 3px dashed #f59e0b; border-radius: 10px; background: #fffdf5; }
+    .draw-rows { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .draw-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+    .called-list { font-size: 15px; max-height: 140px; overflow: auto; border: 2px solid var(--btn-border); border-radius: 6px; padding: 6px; background: #fafcff; }
+    .remaining { font-size: 15px; color: var(--muted); }
+    /* Bottom Timer Bar */
+    .timer-bar-wrap { position: fixed; left: 0; right: 0; bottom: 0; height: 40px; background: #e5e7eb; border-top: 4px solid var(--border); box-shadow: 0 -2px 0 #0003; display: flex; align-items: center; }
+    .timer-inner { width: calc(100% - 160px); margin: 0 12px; background: #ffffff; border: 2px solid var(--btn-border); border-radius: 8px; padding: 6px; }
+    .timer-bar { height: 16px; background: #10b981; border: 2px solid #065f46; box-shadow: var(--pixel-shadow); transition: width 0.25s linear; border-radius: 6px; }
+    .time-text { width: 140px; text-align: center; font-weight: 900; font-size: 20px; }
+    @media (max-width: 1100px) {
+      .main { grid-template-columns: 1fr; }
+    }
+    #toggleMeaningBtn { font-size: 14px; padding: 4px 6px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="scoreboard" id="scoreboard"></div>
+  <div class="main">
+    <div class="question-panel">
+      <div class="qp-header">
+        <div class="badge" id="qType">Type</div>
+        <div class="badge"><span class="q-num" id="qIndex">1</span> / <span id="qTotal">90</span></div>
+      </div>
+      <div class="question-text" id="questionText"></div>
+      <div class="hint" id="meaningText"></div>
+      <button id="toggleMeaningBtn" class="btn-blue" style="margin-top:6px; display:none;">Show meaning</button>
+      <div class="answer-area">
+        <input id="answerInput" class="answer-input" type="text" placeholder="Type answer here..." />
+        <div class="btn-group">
+          <button class="btn-blue" id="checkBtn">Check</button>
+          <button class="btn-gold" id="hintBtn">Hint</button>
+          <button class="btn-blue" id="revealBtn">Reveal</button>
+          <button class="btn-red" id="resetAnsBtn">Reset</button>
+        </div>
+        <div class="btn-group" id="audioBtns" style="display:none;">
+          <button class="btn-gold" id="replayWordBtn" title="Hear Word">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align:middle; margin-right:6px;">
+              <path fill="currentColor" d="M3 10v4h4l5 4V6L7 10H3zm13.5 2a3.5 3.5 0 0 0-2.1-3.2v6.4A3.5 3.5 0 0 0 16.5 12zm-2.1-7.8v2.1a6 6 0 0 1 0 11.3v2.1a8.1 8.1 0 0 0 0-15.5z"/>
+            </svg>
+            🔊 Hear Word
+          </button>
+        </div>
+      </div>
+      <div class="hint" id="hintText"></div>
+      <div class="feedback" id="feedback"></div>
+      <div class="nav">
+        <button id="prevBtn">◀ Prev</button>
+        <button id="nextBtn">Next ▶</button>
+        <div class="spacer"></div>
+        <button class="btn-blue" id="randomBtn">Randomise order</button>
+        <div class="settings">
+          <label>Time (sec): <input id="timeInput" type="number" min="5" max="600" value="45" /></label>
+          <label><input id="autoAdvance" type="checkbox" /> Auto-advance on timeout</label>
+          <button class="btn-gold" id="restartTimerBtn">Restart timer</button>
+        </div>
+      </div>
+    </div>
+    <div class="draw-panel">
+      <div class="draw-header"><h3>Lucky Draw (1–90)</h3></div>
+      <div class="draw-rows">
+        <label class="badge">Class size: <input id="classSize" type="number" min="1" max="90" value="40" style="width:70px; margin-left:6px;"/></label>
+        <div class="remaining" id="remaining"></div>
+      </div>
+      <div class="draw-number" id="drawNumber">—</div>
+      <div class="draw-controls">
+        <button class="btn-gold" id="drawBtn">Draw next</button>
+        <button class="btn-red" id="resetPoolBtn">Reset pool</button>
+      </div>
+      <div class="called-list" id="calledList"></div>
+    </div>
+  </div>
+  <div class="timer-bar-wrap">
+    <div class="timer-inner">
+      <div class="timer-bar" id="timerBar" style="width: 100%"></div>
+    </div>
+    <div class="time-text" id="timeText"><strong>00</strong> s</div>
+  </div>
+</div>
+<script>
+// ====== QUESTIONS (90Q SYLLABUS BANK) ======
+const QUESTIONS = [
+  // A. Vocabulary (30 Questions - Strictly targeting requested P2 textbook units)
+  {"type":"Vocabulary","prompt":"I feel ______ when I receive a beautiful gift from my friend.","answer":"happy","accepted":["happy"],"meaning":"feeling or showing pleasure or contentment."},
+  {"type":"Vocabulary","prompt":"The little girl felt ______ and cried when she lost her toy doll.","answer":"sad","accepted":["sad"],"meaning":"unhappy; feeling sorrow or grief."},
+  {"type":"Vocabulary","prompt":"Don't make him ______ or he will shout loudly.","answer":"angry","accepted":["angry"],"meaning":"feeling or showing strong annoyance or displeasure."},
+  {"type":"Vocabulary","prompt":"I feel very ______ after working out and running in the school fields.","answer":"tired","accepted":["tired"],"meaning":"needing rest or sleep; exhausted."},
+  {"type":"Vocabulary","prompt":"An ox is very ______ because it can pull heavy trucks easily.","answer":"strong","accepted":["strong"],"meaning":"having great physical power or ability."},
+  {"type":"Vocabulary","prompt":"The small baby is too ______ to carry a heavy bucket of water.","answer":"weak","accepted":["weak"],"meaning":"lacking physical strength or energy."},
+  {"type":"Vocabulary","prompt":"Giraffes are very ______ animals with long legs and long necks.","answer":"tall","accepted":["tall"],"meaning":"having a great height; not short."},
+  {"type":"Vocabulary","prompt":"The desk is low, so I need a ______ chair to sit on comfortably.","answer":"short","accepted":["short"],"meaning":"measuring a small distance from end to end; not tall."},
+  {"type":"Vocabulary","prompt":"Many boys like to ______ in the playground during recess.","answer":"play football","accepted":["play football"],"meaning":"to kick a round ball into a net score track."},
+  {"type":"Vocabulary","prompt":"We bounce a heavy ball and throw it into a high basket when we ______ .","answer":"play basketball","accepted":["play basketball"],"meaning":"a game played between two teams of five players on a court."},
+  {"type":"Vocabulary","prompt":"We use rackets to hit a small shuttlecock when we ______ .","answer":"play badminton","accepted":["play badminton"],"meaning":"a game played with rackets and a shuttlecock."},
+  {"type":"Vocabulary","prompt":"She uses her fingers to press the black and white keys when she learns to ______ .","answer":"play the piano","accepted":["play the piano"],"meaning":"to practice performing musical melodies on a keyboard."},
+  {"type":"Vocabulary","prompt":"We use colorful crayons and paper to ______ in the classroom.","answer":"draw pictures","accepted":["draw pictures"],"meaning":"to make art art objects using lines, paints, or markers."},
+  {"type":"Vocabulary","prompt":"I love to ______ because the stories are funny and have beautiful images.","answer":"read comic books","accepted":["read comic books"],"meaning":"to read books containing sequential artwork and speech bubbles."},
+  {"type":"Vocabulary","prompt":"If you love painting and making models, you can join the ______ .","answer":"Art Club","accepted":["Art Club"],"meaning":"an after-school club for fine arts and handicrafts."},
+  {"type":"Vocabulary","prompt":"We practice singing together and playing instruments in the ______ .","answer":"Music Club","accepted":["Music Club"],"meaning":"a school club where students sing songs or learn instruments."},
+  {"type":"Vocabulary","prompt":"Students who like running, swimming, and jumping should join the ______ .","answer":"Sports Club","accepted":["Sports Club"],"meaning":"a group of students practicing athletics and gymnastics."},
+  {"type":"Vocabulary","prompt":"We get red packets and eat delicious rice cakes during ______ .","answer":"Chinese New Year","accepted":["Chinese New Year"],"meaning":"the most important traditional festival for Chinese people."},
+  {"type":"Vocabulary","prompt":"We look at the bright full moon and carry lanterns during the ______ .","answer":"Mid-Autumn Festival","accepted":["Mid-Autumn Festival"],"meaning":"a harvest festival celebrated on the 15th day of the 8th lunar month."},
+  {"type":"Vocabulary","prompt":"We decorate a big green tree and wait for Santa Claus on ______ .","answer":"Christmas","accepted":["Christmas"],"meaning":"an annual festival celebrating the birth of Jesus Christ on Dec 25."},
+  {"type":"Vocabulary","prompt":"Children dress up in spooky costumes and go trick-or-treating on ______ .","answer":"Halloween","accepted":["Halloween"],"meaning":"the night of 31st October celebrated by children in costumes."},
+  {"type":"Vocabulary","prompt":"People eat sweet round ______ filled with lotus seed paste in September.","answer":"mooncakes","accepted":["mooncakes"],"meaning":"a round Chinese bakery product eaten during the autumn moon celebration."},
+  {"type":"Vocabulary","prompt":"Our grandparents give us lucky ______ with money inside during festivals.","answer":"red packets","accepted":["red packets"],"meaning":"monetary gifts given during social and family gatherings."},
+  {"type":"Vocabulary","prompt":"I open my eyes and ______ at six o'clock every morning.","answer":"get up","accepted":["get up"],"meaning":"to wake up and get out of bed."},
+  {"type":"Vocabulary","prompt":"I use a toothbrush and toothpaste to ______ after getting up.","answer":"brush my teeth","accepted":["brush my teeth"],"meaning":"to clean your teeth using a small brush."},
+  {"type":"Vocabulary","prompt":"I use clean water and a towel to ______ in the washroom.","answer":"wash my face","accepted":["wash my face"],"meaning":"to clean the front part of your head with water."},
+  {"type":"Vocabulary","prompt":"We eat bread and drink hot milk when we ______ in the morning.","answer":"have breakfast","accepted":["have breakfast"],"meaning":"the first meal of the day eaten in the morning."},
+  {"type":"Vocabulary","prompt":"I put on my uniform and catch the school bus to ______ at seven o'clock.","answer":"go to school","accepted":["go to school"],"meaning":"to leave home to attend educational classes."},
+  {"type":"Vocabulary","prompt":"I sit at my study desk to ______ before watching TV in the evening.","answer":"do my homework","accepted":["do my homework"],"meaning":"schoolwork that a student is given to do at home."},
+  {"type":"Vocabulary","prompt":"The whole family sits together to ______ at half past seven in the evening.","answer":"have dinner","accepted":["have dinner"],"meaning":"the main meal of the day eaten in the evening."},
+  {"type":"Vocabulary","prompt":"I say goodnight to my mum and dad when I ______ at nine o'clock.","answer":"go to bed","accepted":["go to bed"],"meaning":"to lay down in your bed to sleep for the night."},
+
+  // B. Tenses (20 Questions - Simple Present vs Present Continuous with BOLD indicators)
+  {"type":"Tenses","prompt":"Look! The children ______ (play) basketball in the playground <b>now</b>.","answer":"are playing","accepted":["are playing"]},
+  {"type":"Tenses","prompt":"My little brother ______ (brush) his teeth <b>every morning</b>.","answer":"brushes","accepted":["brushes"]},
+  {"type":"Tenses","prompt":"Miss Lee ______ (teach) us English grammar <b>every Tuesday</b>.","answer":"teaches","accepted":["teaches"]},
+  {"type":"Tenses","prompt":"Listen! Someone ______ (sing) beautifully in the music room <b>at the moment</b>.","answer":"is singing","accepted":["is singing"]},
+  {"type":"Tenses","prompt":"We ______ (do) our homework in the library <b>at present</b>.","answer":"are doing","accepted":["are doing"]},
+  {"type":"Tenses","prompt":"The clever student ______ (read) comic books <b>every evening</b>.","answer":"reads","accepted":["reads"]},
+  {"type":"Tenses","prompt":"I ______ (wash) my face <b>right now</b> so I cannot answer the phone.","answer":"am washing","accepted":["am washing"]},
+  {"type":"Tenses","prompt":"They ______ (visit) the Art Club <b>every Friday afternoon</b>.","answer":"visit","accepted":["visit"]},
+  {"type":"Tenses","prompt":"The heavy cat ______ (sleep) under the chair <b>at this moment</b>.","answer":"is sleeping","accepted":["is sleeping"]},
+  {"type":"Tenses","prompt":"My mother ______ (cook) a delicious dinner for us <b>every night</b>.","answer":"cooks","accepted":["cooks"]},
+  {"type":"Tenses","prompt":"Tom and Ken ______ (run) to the school gate <b>now</b>.","answer":"are running","accepted":["are running"]},
+  {"type":"Tenses","prompt":"I ______ (have) breakfast with my family <b>every Sunday morning</b>.","answer":"have","accepted":["have"]},
+  {"type":"Tenses","prompt":"Look! A tiny bird ______ (fly) near your bedroom window <b>now</b>.","answer":"is flying","accepted":["is flying"]},
+  {"type":"Tenses","prompt":"We ______ (not play) computer games <b>on weekdays</b>.","answer":"do not play","accepted":["do not play","don't play"]},
+  {"type":"Tenses","prompt":"She ______ (draw) a beautiful picture of a Christmas tree <b>right now</b>.","answer":"is drawing","accepted":["is drawing"]},
+  {"type":"Tenses","prompt":"He <b>usually</b> ______ (ride) his small bicycle in the park near his house.","answer":"rides","accepted":["rides"]},
+  {"type":"Tenses","prompt":"It ______ (rain) heavily outside <b>at the moment</b>, so pack your umbrella.","answer":"is raining","accepted":["is raining"]},
+  {"type":"Tenses","prompt":"The school principal <b>always</b> ______ (greet) the students at the entrance.","answer":"greets","accepted":["greets"]},
+  {"type":"Tenses","prompt":"They ______ (eat) delicious mooncakes inside the living room <b>now</b>.","answer":"are eating","accepted":["are eating"]},
+  {"type":"Tenses","prompt":"Ben ______ (go) to bed at nine o'clock <b>every night</b>.","answer":"goes","accepted":["goes"]},
+
+  // C. Prepositions (20 Questions - strictly focused on time expressions using in/on/at)
+  {"type":"Prepositions","prompt":"The primary school assembly starts ______ 8:00 a.m. every morning.","answer":"at","accepted":["at"]},
+  {"type":"Prepositions","prompt":"We do not have to attend classes ______ Sundays.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"My grandfather exercises in the park ______ the morning.","answer":"in","accepted":["in"]},
+  {"type":"Prepositions","prompt":"The stars look very beautiful and bright ______ night.","answer":"at","accepted":["at"]},
+  {"type":"Prepositions","prompt":"Our school sports club practices running ______ the afternoon.","answer":"in","accepted":["in"]},
+  {"type":"Prepositions","prompt":"We will go to the country park to have a picnic ______ Saturday morning.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"The sun is very hot and bright high in the sky ______ noon.","answer":"at","accepted":["at"]},
+  {"type":"Prepositions","prompt":"I complete my school homework ______ the evening.","answer":"in","accepted":["in"]},
+  {"type":"Prepositions","prompt":"The family opens lucky green boxes ______ Christmas Day.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"The school bus always arrives ______ half past seven.","answer":"at","accepted":["at"]},
+  {"type":"Prepositions","prompt":"Easter holiday usually happens ______ April.","answer":"in","accepted":["in"]},
+  {"type":"Prepositions","prompt":"Children love receiving lucky packets ______ Chinese New Year's Day.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"It gets very dark and quiet inside the house ______ midnight.","answer":"at","accepted":["at"]},
+  {"type":"Prepositions","prompt":"We love eating cold ice cream desserts ______ summer.","answer":"in","accepted":["in"]},
+  {"type":"Prepositions","prompt":"The global New Year celebration is ______ the first of January.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"The English club activities always conclude ______ 4:15 p.m.","answer":"at","accepted":["at"]},
+  {"type":"Prepositions","prompt":"It is very windy and chilly ______ winter.","answer":"in","accepted":["in"]},
+  {"type":"Prepositions","prompt":"We have to wake up early ______ weekdays to catch the bus.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"We dress up in funny costumes ______ Halloween.","answer":"on","accepted":["on"]},
+  {"type":"Prepositions","prompt":"My father drinks a large glass of juice ______ breakfast time.","answer":"at","accepted":["at"]},
+
+  // D. Proofreading (20 Questions - P1-P2 Structural knowledge error detection)
+  {"type":"Proofreading","prompt":"He <u>play</u> football in the playground every afternoon.","answer":"plays","accepted":["plays"]},
+  {"type":"Proofreading","prompt":"They are <u>danceing</u> happily in the music room now.","answer":"dancing","accepted":["dancing"]},
+  {"type":"Proofreading","prompt":"I am <u>read</u> a very funny comic book at the moment.","answer":"reading","accepted":["reading"]},
+  {"type":"Proofreading","prompt":"She <u>have</u> a beautiful red dress for the festival.","answer":"has","accepted":["has"]},
+  {"type":"Proofreading","prompt":"This is Ken. <u>Her</u> favorite activity is basketball.","answer":"His","accepted":["his"]},
+  {"type":"Proofreading","prompt":"There are three large <u>box</u> of toys on the desk.","answer":"boxes","accepted":["boxes"]},
+  {"type":"Proofreading","prompt":"We always go to bed <u>on</u> nine o'clock at night.","answer":"at","accepted":["at"]},
+  {"type":"Proofreading","prompt":"The boy brushes <u>him</u> teeth before having breakfast.","answer":"his","accepted":["his"]},
+  {"type":"Proofreading","prompt":"Many <u>childs</u> are running on the sports track now.","answer":"children","accepted":["children"]},
+  {"type":"Proofreading","prompt":"I like <u>eat</u> sweet mooncakes during the moon festival.","answer":"eating","accepted":["eating"]},
+  {"type":"Proofreading","prompt":"She <u>do not</u> like joining the Sports Club.","answer":"does not","accepted":["does not","doesn't"]},
+  {"type":"Proofreading","prompt":"Look! The small bird <u>are</u> flying into the art room.","answer":"is","accepted":["is"]},
+  {"type":"Proofreading","prompt":"I usually finish my school homework <u>at</u> the afternoon.","answer":"in","accepted":["in"]},
+  {"type":"Proofreading","prompt":"They <u>has</u> English language class every Monday morning.","answer":"have","accepted":["have"]},
+  {"type":"Proofreading","prompt":"Do you want to buy <u>this</u> red apples over there?","answer":"these","accepted":["these"]},
+  {"type":"Proofreading","prompt":"My mother <u>cook</u> a very healthy breakfast every morning.","answer":"cooks","accepted":["cooks"]},
+  {"type":"Proofreading","prompt":"He is <u>wear</u> a warm blue jacket today because it is cold.","answer":"wearing","accepted":["wearing"]},
+  {"type":"Proofreading","prompt":"There <u>is</u> two big libraries in our primary school.","answer":"are","accepted":["are"]},
+  {"type":"Proofreading","prompt":"I am a good student. My class teacher likes <u>I</u>.","answer":"me","accepted":["me"]},
+  {"type":"Proofreading","prompt":"We do not go to school to have lessons <u>in</u> Saturdays.","answer":"on","accepted":["on"]}
+];
+
+// ====== Application State ======
+let order = [...Array(QUESTIONS.length).keys()];
+let current = 0;
+let hintRevealed = 0;
+let timerTotal = 45;
+let timeLeft = timerTotal;
+let timerId = null;
+let ticking = false;
+const scores = new Array(8).fill(0);
+let classSize = 40;
+let pool = [];
+let called = [];
+
+// Audio (Countdown Tones)
+let audioCtx = null;
+function initAudio(){ if (!audioCtx){ try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx=null; } } }
+function beep(duration=0.08, frequency=1000){ if (!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type='square'; o.frequency.value=frequency; o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.08, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime+duration); o.start(); o.stop(audioCtx.currentTime+duration); }
+
+// Voice Synthesis Logic (With Automated Initializer Mode)
+let lastSpokenWord = '';
+let preferredVoice = null;
+function pickVoice() {
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  if (voices.length === 0) return null;
+  const uk = voices.find(v => /en-GB/i.test(v.lang) || /UK English/i.test(v.name));
+  return uk || voices.find(v => /^en[-_]/i.test(v.lang)) || voices[0];
+}
+function speakWord(word){
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(word);
+  if (!preferredVoice) preferredVoice = pickVoice();
+  if (preferredVoice) utter.voice = preferredVoice;
+  utter.rate = 0.80; // Calibrated for primary learners
+  lastSpokenWord = word;
+  setTimeout(() => window.speechSynthesis.speak(utter), 60);
+}
+function replayWord(){ if (lastSpokenWord) speakWord(lastSpokenWord); }
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => { preferredVoice = pickVoice(); };
+}
+
+// Validation Normalization Helpers
+function normalise(s){ return (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ').replace(/[‑‐‒–—]/g,'-'); }
+function shuffle(arr){ for (let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+
+// Scoreboard Rendering Logic
+function renderScoreboard(){
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML='';
+  for (let i=0;i<8;i++){
+    const div = document.createElement('div');
+    div.className = 'team';
+    div.innerHTML = `
+      <header>
+        <h4>Group ${i+1}</h4>
+        <div class="score-badge" id="score-${i}">${scores[i]}</div>
+      </header>
+      <div class="controls">
+        <div class="row">
+          <button class="btn-green" data-delta="1" data-team="${i}">+1</button>
+          <button class="btn-green" data-delta="2" data-team="${i}">+2</button>
+        </div>
+        <div class="row">
+          <button class="btn-red" data-delta="-1" data-team="${i}">-1</button>
+          <button class="btn-red" data-delta="-2" data-team="${i}">-2</button>
+        </div>
+      </div>`;
+    sb.appendChild(div);
+  }
+  sb.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const team = parseInt(btn.getAttribute('data-team'));
+    const delta = parseInt(btn.getAttribute('data-delta'));
+    if (!isNaN(team) && !isNaN(delta)){
+      scores[team]+=delta;
+      document.getElementById(`score-${team}`).textContent = scores[team];
+    }
+  });
+}
+
+let toggleMeaningBtn = null;
+let meaningEl = null;
+
+// Core Question Render Engine
+function renderQuestion(){
+  const q = QUESTIONS[ order[current] ];
+  document.getElementById('qType').textContent = q.type;
+  document.getElementById('qIndex').textContent = (current+1);
+  document.getElementById('qTotal').textContent = QUESTIONS.length;
+  document.getElementById('questionText').innerHTML = q.prompt;
+  document.getElementById('answerInput').value = '';
+  document.getElementById('feedback').textContent='';
+  hintRevealed = 0;
+  document.getElementById('hintText').textContent = '';
+  
+  if (q.type === 'Vocabulary' && q.meaning){
+    meaningEl.textContent = "Meaning: " + q.meaning; 
+    meaningEl.style.display = 'none';
+    toggleMeaningBtn.style.display = 'inline-block';
+    toggleMeaningBtn.textContent = 'Show meaning';
+  } else {
+    meaningEl.textContent = '';
+    meaningEl.style.display = 'none';
+    toggleMeaningBtn.style.display = 'none';
+  }
+  
+  restartTimer();
+  
+  const audioBtns = document.getElementById('audioBtns');
+  if (q.type === 'Vocabulary') {
+    audioBtns.style.display = 'flex';
+    document.getElementById('replayWordBtn').onclick = () => replayWord();
+    speakWord(q.answer); 
+  } else {
+    audioBtns.style.display = 'none';
+    lastSpokenWord = '';
+  }
+}
+
+function checkAnswer(){
+  const q = QUESTIONS[ order[current] ];
+  const user = normalise(document.getElementById('answerInput').value);
+  const accepted = (q.accepted || [q.answer]).map(a => normalise(a));
+  const ok = accepted.includes(user);
+  const fb = document.getElementById('feedback');
+  if (ok){ fb.textContent='Correct!'; fb.className='feedback good'; } else { fb.textContent='Try again!'; fb.className='feedback bad'; }
+  return ok;
+}
+
+function reveal(){ const q=QUESTIONS[ order[current] ]; document.getElementById('answerInput').value=q.answer; document.getElementById('hintText').textContent=q.answer; }
+function hint(){ const q=QUESTIONS[ order[current] ]; hintRevealed = Math.min(hintRevealed+1, q.answer.replace(/\s/g,'').length); let count=0, out=''; for (let ch of q.answer){ if (ch===' '){ out+=' '; continue; } if (count<hintRevealed){ out+=ch; count++; } else { out+='_'; } } document.getElementById('hintText').textContent = out; }
+function go(d){ current = (current + d + order.length) % order.length; renderQuestion(); }
+function randomiseOrder(){ order = [...Array(QUESTIONS.length).keys()]; shuffle(order); current=0; renderQuestion(); }
+
+// Adaptive Timer Control
+function restartTimer(){
+  timerTotal = parseInt(document.getElementById('timeInput').value) || 45;
+  timeLeft = timerTotal;
+  updateTimerUI();
+  if (timerId) clearInterval(timerId);
+  ticking=false;
+  timerId = setInterval(()=>{
+    timeLeft--;
+    if (timeLeft <= 10 && !ticking){ ticking=true; initAudio(); }
+    if (timeLeft <= 10 && timeLeft > 0){ beep(0.05, 900); }
+    if (timeLeft < 0){ clearInterval(timerId); timerId=null; timeLeft=0; updateTimerUI(); if (document.getElementById('autoAdvance').checked){ go(1); } return; }
+    updateTimerUI();
+  },1000);
+}
+
+function updateTimerUI(){ const bar=document.getElementById('timerBar'); const txt=document.getElementById('timeText'); const pct=Math.max(0, Math.min(1, timeLeft/timerTotal)); bar.style.width=(pct*100).toFixed(1)+'%'; if (timeLeft<=10){ bar.style.background='#ef4444'; bar.style.borderColor='#7f1d1d'; } else { bar.style.background='#10b981'; bar.style.borderColor='#065f46'; } txt.innerHTML = `<strong>${String(Math.max(0,timeLeft)).padStart(2,'0')}</strong> s`; }
+
+// Class Draw Engine
+function resetPool(){ const inp=document.getElementById('classSize'); classSize=Math.max(1, Math.min(90, parseInt(inp.value) || 40)); pool=Array.from({length:classSize},(_,i)=>i+1); called=[]; document.getElementById('drawNumber').textContent='—'; renderCalled(); }
+function renderCalled(){ const rem=pool.length; document.getElementById('remaining').textContent=`Remaining: ${rem}`; const listDiv=document.getElementById('calledList'); if (called.length===0){ listDiv.innerHTML='<em>No numbers called yet.</em>'; return; } const newest=called[called.length-1]; const others=called.slice(0,-1); listDiv.innerHTML = `<span style="font-weight:900; color:#b45309;">${newest}</span>` + (others.length? ', ' + others.join(', ') : ''); }
+function drawNext(){ if (pool.length===0){ renderCalled(); return; } const idx=Math.floor(Math.random()*pool.length); const num=pool.splice(idx,1)[0]; called.push(num); document.getElementById('drawNumber').textContent=num; renderCalled(); }
+
+// Event Initialization Bindings
+function init(){
+  renderScoreboard();
+  document.getElementById('checkBtn').addEventListener('click', checkAnswer);
+  document.getElementById('hintBtn').addEventListener('click', hint);
+  document.getElementById('revealBtn').addEventListener('click', reveal);
+  document.getElementById('resetAnsBtn').addEventListener('click', ()=>{ document.getElementById('answerInput').value=''; document.getElementById('feedback').textContent=''; hintRevealed=0; document.getElementById('hintText').textContent=''; });
+  document.getElementById('prevBtn').addEventListener('click', ()=>go(-1));
+  document.getElementById('nextBtn').addEventListener('click', ()=>go(1));
+  document.getElementById('randomBtn').addEventListener('click', randomiseOrder);
+  document.getElementById('restartTimerBtn').addEventListener('click', restartTimer);
+  document.getElementById('classSize').addEventListener('change', resetPool);
+  document.getElementById('drawBtn').addEventListener('click', drawNext);
+  document.getElementById('resetPoolBtn').addEventListener('click', resetPool);
+  
+  toggleMeaningBtn = document.getElementById('toggleMeaningBtn');
+  meaningEl = document.getElementById('meaningText');
+  toggleMeaningBtn.addEventListener('click', () => {
+    const isHidden = meaningEl.style.display === 'none';
+    meaningEl.style.display = isHidden ? 'block' : 'none';
+    toggleMeaningBtn.textContent = isHidden ? 'Hide meaning' : 'Show meaning';
+  });
+  
+  resetPool();
+  renderQuestion();
+}
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
