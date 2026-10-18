@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>乘法挑戰平台</title>
+    <!-- 引入 Google 登入 API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --primary-hover: #357abd;
+            --secondary: #ff7675;
+            --secondary-hover: #d63031;
+            --bg-gradient-1: #a1c4fd;
+            --bg-gradient-2: #c2e9fb;
+            --box-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #2d3436;
+            --correct-bg: #e8f8f5;
+            --wrong-bg: #ffeaa7;
+        }
+
+        body {
+            font-family: 'Nunito', 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 100%);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden; 
+            touch-action: manipulation; /* 避免連點放大 */
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .bg-symbols {
+            position: fixed; width: 100%; height: 100%; top: 0; left: 0;
+            pointer-events: none; z-index: -1; overflow: hidden;
+        }
+        .symbol {
+            position: absolute; font-size: 3rem; color: rgba(255, 255, 255, 0.4);
+            animation: floatUp 10s linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(110vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+        }
+
+        .container {
+            background-color: var(--box-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            max-height: 98vh;
+            overflow-y: auto;
+        }
+
+        h1, h2 { color: var(--primary); font-weight: 800; margin-top: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+
+        .screen { display: none; }
+        .screen.active { display: block; animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #636e72; }
+        select, input[type="number"], input[type="text"] {
+            width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #dfe6e9; 
+            font-size: 16px; box-sizing: border-box; transition: border-color 0.2s;
+        }
+        select:focus, input:focus { border-color: var(--primary); outline: none; }
+
+        .btn {
+            background-color: var(--primary); color: white; border: none; padding: 14px 20px;
+            border-radius: 15px; font-size: 16px; font-weight: bold; cursor: pointer; margin: 6px 0; 
+            width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(74,144,226,0.3);
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-3px); box-shadow: 0 7px 12px rgba(74,144,226,0.4); }
+        .btn:active { transform: translateY(1px); }
+        
+        .btn.secondary { background-color: #00b894; box-shadow: 0 4px 6px rgba(0,184,148,0.3); }
+        .btn.secondary:hover { background-color: #00cec9; box-shadow: 0 7px 12px rgba(0,184,148,0.4); }
+        
+        .btn.rank-btn { background-color: var(--secondary); box-shadow: 0 4px 6px rgba(255,118,117,0.3); }
+        .btn.rank-btn:hover { background-color: var(--secondary-hover); box-shadow: 0 7px 12px rgba(255,118,117,0.4); }
+
+        .btn.submit-btn { background-color: #00b894; font-size: 20px; padding: 15px; margin-top: 15px; }
+        
+        /* 輕量化返回按鈕 */
+        .btn.outline-btn { 
+            background-color: transparent; color: #636e72; border: 2px solid #dfe6e9; 
+            box-shadow: none; margin-top: 5px; padding: 10px; 
+        }
+        .btn.outline-btn:hover { background-color: #f1f2f6; color: #2d3436; border-color: #b2bec3; transform: translateY(0); }
+
+        .stats-bar {
+            display: flex; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 10px 15px;
+            border-radius: 12px; font-size: 15px; margin-bottom: 15px; font-weight: bold;
+        }
+
+        .question-box {
+            font-size: 50px; font-weight: 900; margin: 15px 0; color: #2d3436; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 虛擬輸入框 (防止觸發系統鍵盤) */
+        .fake-input {
+            font-size: 32px; text-align: center; width: 160px; height: 60px; line-height: 60px;
+            border: 3px solid #dfe6e9; border-radius: 15px; font-weight: bold; color: var(--primary);
+            background: white; cursor: pointer; display: inline-block; user-select: none; transition: 0.2s;
+            margin-bottom: 15px;
+        }
+        .fake-input.active {
+            border-color: var(--primary); background-color: #f4f0fa; box-shadow: 0 0 12px rgba(74,144,226,0.3);
+            transform: scale(1.05);
+        }
+        .fake-input:empty::before { content: attr(data-placeholder); color: #b2bec3; font-weight: normal; font-size: 20px; }
+
+        /* 虛擬數字鍵盤 */
+        .numpad {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 320px; margin: 0 auto;
+        }
+        .numpad button {
+            background: #f1f2f6; border: none; border-radius: 12px; font-size: 26px; font-weight: bold;
+            color: var(--text-main); padding: 15px 0; cursor: pointer; transition: 0.1s;
+            box-shadow: 0 4px 0 #dfe6e9; touch-action: manipulation;
+        }
+        .numpad button:active { transform: translateY(4px); box-shadow: 0 0 0 #dfe6e9; }
+        .numpad .func-btn { background: #dfe6e9; font-size: 20px; color: #d63031; }
+
+        @keyframes pop { 50% { transform: scale(1.03); } }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .feedback-correct { animation: pop 0.3s ease; background-color: var(--correct-bg) !important; border: 2px solid #55efc4; }
+        .feedback-wrong { animation: shake 0.3s ease; background-color: var(--wrong-bg) !important; border: 2px solid #fab1a0; }
+
+        .table-container { max-height: 320px; overflow-y: auto; border-radius: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; background: white; }
+        th, td { border-bottom: 1px solid #f1f2f6; padding: 10px; text-align: center; font-size: 15px; }
+        th { background-color: var(--primary); color: white; position: sticky; top: 0; white-space: nowrap; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        tr:hover { background-color: #e8f4f8; }
+
+        .leaderboard-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .leaderboard-filters select { flex: 1; min-width: 140px; }
+
+        #confetti-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
+        .confetti { position: absolute; width: 10px; height: 10px; opacity: 0.8; }
+        
+        /* 登入區塊樣式 */
+        .auth-section {
+            background: rgba(74, 144, 226, 0.05); border: 1px solid rgba(74, 144, 226, 0.2);
+            padding: 15px; border-radius: 15px; margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-symbols" id="bg-symbols"></div>
+    <div id="confetti-container"></div>
+
+    <div class="container" id="app-container">
+        
+        <!-- 主選單 -->
+        <div id="menu-screen" class="screen active">
+            <h1>✖️ 乘法挑戰平台</h1>
+            
+            <div class="auth-section">
+                <div id="google-btn-container" style="display: flex; justify-content: center; min-height: 40px;"></div>
+                <div id="user-welcome" style="display: none; color: var(--primary); font-weight: 800; font-size: 18px;"></div>
+                <p id="login-hint" style="margin: 8px 0 0; color: #636e72; font-size: 13px;">💡 參與「限時挑戰」及「挑戰模式」需先登入 Google</p>
+            </div>
+
+            <div class="form-group">
+                <label>選擇題型 (無限 / 限時模式適用)：</label>
+                <select id="question-type">
+                    <option value="1">🌱 一位數 × 一位數</option>
+                    <option value="2">🌿 兩位數 × 一位數</option>
+                    <option value="3">🌳 三位數 × 一位數</option>
+                    <option value="4">🔥 兩位數 × 兩位數</option>
+                    <option value="5">⚡ 三位數 × 兩位數</option>
+                </select>
+            </div>
+            
+            <button class="btn" onclick="startGame('infinite')">♾️ 無限練習</button>
+            <button class="btn rank-btn" onclick="startGame('timed')" style="background-color: #ff9f43;">⏱️ 限時挑戰 (3分鐘/可自選難度)</button>
+            <button class="btn rank-btn" onclick="startGame('ranked')">🏆 挑戰模式 (3分鐘/漸進難度)</button>
+            
+            <!-- 加入返回主選單的按鈕區塊 -->
+            <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 5px;">
+                <button class="btn secondary" onclick="showLeaderboard()">📊 觀看英雄榜</button>
+                <button class="btn outline-btn" onclick="window.location.href='https://ltmps-chusiuhin.github.io/2627p5math/'" style="width: 100%;">🏠 返回綜合學習平台</button>
+            </div>
+        </div>
+
+        <!-- 遊戲畫面 -->
+        <div id="game-screen" class="screen">
+            <div class="stats-bar">
+                <span id="time-display" style="color: var(--primary);">時間: --:--</span>
+                <span id="score-display" style="display: none; color: var(--secondary);">分數: 0</span>
+                <span id="progress-display" style="color: #00b894;">答對: 0/0 (0%)</span>
+            </div>
+            <div id="level-display" style="display:none; color: var(--secondary); font-weight: bold; margin-bottom:5px; font-size: 16px;"></div>
+            
+            <div class="question-box" id="question-text">? × ?</div>
+            
+            <!-- 虛擬輸入框 -->
+            <div id="answer-input" class="fake-input active" data-placeholder="答案"></div>
+            
+            <!-- 虛擬數字鍵盤 -->
+            <div class="numpad">
+                <button onclick="appendNum('1')">1</button>
+                <button onclick="appendNum('2')">2</button>
+                <button onclick="appendNum('3')">3</button>
+                <button onclick="appendNum('4')">4</button>
+                <button onclick="appendNum('5')">5</button>
+                <button onclick="appendNum('6')">6</button>
+                <button onclick="appendNum('7')">7</button>
+                <button onclick="appendNum('8')">8</button>
+                <button onclick="appendNum('9')">9</button>
+                <button onclick="backspace()" class="func-btn">⌫</button>
+                <button onclick="appendNum('0')">0</button>
+                <button onclick="checkAnswer()" class="func-btn" style="background:#00b894; color:white;">↵</button>
+            </div>
+
+            <button class="btn submit-btn" onclick="checkAnswer()">🚀 送出答案</button>
+            <!-- 退出練習按鈕 -->
+            <button class="btn outline-btn" onclick="confirmExit()">🏠 結束練習並返回</button>
+        </div>
+
+        <!-- 結算畫面 -->
+        <div id="result-screen" class="screen">
+            <h2>🎉 練習結束！</h2>
+            <div id="final-stats" style="font-size: 18px; line-height: 1.8; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 12px;"></div>
+            
+            <div id="upload-section" class="form-group" style="display: none; background: #fff; padding: 15px; border-radius: 12px; border: 2px dashed var(--secondary);">
+                <label style="color: var(--secondary); text-align: center; font-size: 18px;">🔥 上傳分數打破紀錄</label>
+                
+                <div style="text-align: center; margin-bottom: 12px; font-size: 15px; font-weight: bold; color: var(--text-main);">
+                    挑戰者：<span id="upload-name-display" style="color: var(--primary); text-decoration: underline;"></span>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="class-select" style="flex: 1;">
+                        <option value="5A">5A</option>
+                        <option value="5B">5B</option>
+                        <option value="5C">5C</option>
+                        <option value="5D">5D</option>
+                        <option value="5E">5E</option>
+                    </select>
+                    <input type="number" id="student-num" placeholder="學號(1-40)" min="1" max="40" style="flex: 2;">
+                </div>
+                <button class="btn rank-btn" id="submit-score-btn" onclick="submitScore()">🚀 上傳成績</button>
+            </div>
+            
+            <button class="btn secondary" onclick="showScreen('menu-screen')">🏠 返回主選單</button>
+        </div>
+
+        <!-- 排行榜畫面 -->
+        <div id="leaderboard-screen" class="screen">
+            <h2>🏆 英雄排行榜</h2>
+            <div class="leaderboard-filters">
+                <select id="filter-mode" onchange="fetchLeaderboard()">
+                    <option value="challenge">🏆 挑戰模式</option>
+                    <option value="timed_1">⏱️ 限時 - 🌱 一位 × 一位</option>
+                    <option value="timed_2">⏱️ 限時 - 🌿 兩位 × 一位</option>
+                    <option value="timed_3">⏱️ 限時 - 🌳 三位 × 一位</option>
+                    <option value="timed_4">⏱️ 限時 - 🔥 兩位 × 兩位</option>
+                    <option value="timed_5">⏱️ 限時 - ⚡ 三位 × 兩位</option>
+                </select>
+                
+                <select id="filter-class" onchange="fetchLeaderboard()">
+                    <option value="ALL">🌟 5年級總排名</option>
+                    <option value="5A">5A 班</option>
+                    <option value="5B">5B 班</option>
+                    <option value="5C">5C 班</option>
+                    <option value="5D">5D 班</option>
+                    <option value="5E">5E 班</option>
+                </select>
+            </div>
+            <div class="table-container">
+                <table id="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>名次</th>
+                            <th>班別</th>
+                            <th>學號</th>
+                            <th>姓氏(Last Name)</th>
+                            <th>分數</th>
+                            <th>準確率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body"></tbody>
+                </table>
+            </div>
+            <br>
+            <button class="btn secondary" onclick="showScreen('menu-screen')">🏠 返回選單</button>
+        </div>
+
+    </div>
+
+    <!-- UI特效與輸入邏輯 -->
+    <script>
+        const symbols = ['✖', '÷', '+', '−', '=', '%'];
+        const bgContainer = document.getElementById('bg-symbols');
+        for(let i=0; i<15; i++) {
+            let el = document.createElement('div');
+            el.className = 'symbol';
+            el.innerText = symbols[Math.floor(Math.random() * symbols.length)];
+            el.style.left = Math.random() * 100 + 'vw';
+            el.style.animationDuration = (Math.random() * 5 + 8) + 's';
+            el.style.animationDelay = (Math.random() * 5) + 's';
+            el.style.fontSize = (Math.random() * 2 + 2) + 'rem';
+            bgContainer.appendChild(el);
+        }
+
+        function fireConfetti() {
+            const container = document.getElementById('confetti-container');
+            container.innerHTML = '';
+            const colors = ['#ff7675', '#74b9ff', '#55efc4', '#ffeaa7', '#a29bfe'];
+            for(let i=0; i<50; i++) {
+                let conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.top = '-10px';
+                conf.style.transition = 'transform 3s ease-in, top 3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 3s';
+                
+                const fallX = (Math.random() - 0.5) * 200;
+                const fallY = window.innerHeight + 50;
+                const rotate = Math.random() * 720;
+                container.appendChild(conf);
+                
+                setTimeout(() => {
+                    conf.style.transform = `translateX(${fallX}px) rotate(${rotate}deg)`;
+                    conf.style.top = `${fallY}px`;
+                    conf.style.opacity = 0;
+                }, 50);
+            }
+        }
+
+        // 虛擬鍵盤邏輯
+        const inputField = document.getElementById('answer-input');
+
+        function appendNum(numStr) {
+            if(inputField.innerText.length < 6) { // 限制長度
+                inputField.innerText += numStr;
+            }
+        }
+
+        function backspace() {
+            inputField.innerText = inputField.innerText.slice(0, -1);
+        }
+
+        // 全域鍵盤監聽，支援實體鍵盤作答
+        document.addEventListener('keydown', function(e) {
+            if (!document.getElementById('game-screen').classList.contains('active')) return;
+            
+            if (e.key >= '0' && e.key <= '9') {
+                appendNum(e.key);
+            } else if (e.key === 'Backspace') {
+                backspace();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                checkAnswer();
+            }
+        });
+    </script>
+
+    <!-- Google 登入邏輯 -->
+    <script>
+        let currentUser = null; 
+
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function handleCredentialResponse(response) {
+            const payload = parseJwt(response.credential);
+            if(payload) {
+                const lastName = payload.family_name || payload.name || "神秘同學"; 
+                currentUser = {
+                    id: payload.sub,
+                    lastName: lastName
+                };
+                document.getElementById('google-btn-container').style.display = 'none';
+                document.getElementById('login-hint').style.display = 'none';
+                
+                const welcomeEl = document.getElementById('user-welcome');
+                welcomeEl.innerText = `👋 歡迎，${currentUser.lastName} 同學！`;
+                welcomeEl.style.display = 'block';
+            }
+        }
+
+        window.onload = function () {
+            google.accounts.id.initialize({
+                client_id: "573911894747-0c28hfr0bmkjnn8pkm2msg6sjal1thqe.apps.googleusercontent.com",
+                callback: handleCredentialResponse
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("google-btn-container"),
+                { theme: "outline", size: "large", shape: "pill", width: 250 }
+            );
+        };
+    </script>
+
+    <!-- Firebase 模組化載入與邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, getDocs, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCFG9cgnSV573EE_D-i1YyOwFwvg-GLbys",
+            authDomain: "math-learning-platform-d80c7.firebaseapp.com",
+            projectId: "math-learning-platform-d80c7",
+            storageBucket: "math-learning-platform-d80c7.firebasestorage.app",
+            messagingSenderId: "484525571730",
+            appId: "1:484525571730:web:f6c2ec959cf40c1a7cf04b",
+            measurementId: "G-S95BCB5WSM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.saveToFirebase = async (data) => {
+            const btn = document.getElementById('submit-score-btn');
+            try {
+                btn.innerText = "上傳中...";
+                btn.disabled = true;
+                
+                // 設定 Document ID：結合 GoogleID、模式與題型，讓學生可以在不同模式下各自保有紀錄
+                const modeSuffix = data.gameMode === 'challenge' ? 'challenge' : `timed_${data.questionType}`;
+                const docId = `${data.googleId}_${modeSuffix}`;
+                
+                const docRef = doc(db, "leaderboard", docId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const oldData = docSnap.data();
+                    if (data.score <= oldData.score) {
+                        alert(`你在此模式之前的最高紀錄是 ${oldData.score} 分，這次沒有超越喔！再接再厲！💪`);
+                        btn.innerText = "🚀 上傳成績";
+                        btn.disabled = false;
+                        
+                        // 自動將排行榜切換到對應的模式
+                        document.getElementById('filter-mode').value = modeSuffix;
+                        showScreen('leaderboard-screen');
+                        fetchLeaderboard();
+                        return;
+                    }
+                }
+                
+                await setDoc(docRef, {
+                    class: data.class,
+                    studentNum: data.studentNum,
+                    lastName: data.lastName,
+                    score: data.score,
+                    accuracy: data.accuracy,
+                    gameMode: data.gameMode,
+                    questionType: data.questionType,
+                    timestamp: new Date()
+                });
+                
+                alert("太棒了！新紀錄上傳成功！🎉");
+                document.getElementById('filter-mode').value = modeSuffix;
+                showScreen('leaderboard-screen');
+                fetchLeaderboard();
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                alert("上傳失敗，請檢查網路連線或資料庫權限設定。");
+            } finally {
+                btn.innerText = "🚀 上傳成績";
+                btn.disabled = false;
+            }
+        };
+
+        window.fetchLeaderboard = async () => {
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = "<tr><td colspan='6'>資料載入中... ⏳</td></tr>";
+            
+            const modeFilter = document.getElementById('filter-mode').value;
+            const classFilter = document.getElementById('filter-class').value;
+            
+            // 解析查詢的模式與題型
+            let gameMode = 'challenge';
+            let qType = 0;
+            if (modeFilter.startsWith('timed_')) {
+                gameMode = 'timed';
+                qType = parseInt(modeFilter.split('_')[1]);
+            }
+            
+            let queryConditions = [
+                where("gameMode", "==", gameMode),
+                where("questionType", "==", qType)
+            ];
+            
+            if (classFilter !== "ALL") {
+                queryConditions.push(where("class", "==", classFilter));
+            }
+
+            try {
+                const q = query(collection(db, "leaderboard"), ...queryConditions, orderBy("score", "desc"), limit(30));
+                const querySnapshot = await getDocs(q);
+                
+                tbody.innerHTML = "";
+                let rank = 1;
+                
+                if(querySnapshot.empty) {
+                    tbody.innerHTML = "<tr><td colspan='6'>暫無資料，快來成為第一個挑戰者！</td></tr>";
+                    return;
+                }
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let rankDisplay = rank === 1 ? "🥇 1" : rank === 2 ? "🥈 2" : rank === 3 ? "🥉 3" : rank;
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-weight:bold; color: ${rank<=3?'var(--secondary)':'inherit'};">${rankDisplay}</td>
+                            <td>${data.class}</td>
+                            <td>${data.studentNum}</td>
+                            <td style="color: var(--primary); font-weight: bold;">${data.lastName || '神秘人'}</td>
+                            <td style="font-weight:bold; color:var(--primary); font-size:18px;">${data.score}</td>
+                            <td>${data.accuracy}%</td>
+                        </tr>
+                    `;
+                    rank++;
+                });
+            } catch (e) {
+                console.error("Error fetching docs: ", e);
+                tbody.innerHTML = `<tr><td colspan='6' style="color:red; font-size:13px;">
+                    載入失敗。<br>
+                    開發者注意：Firebase 需要建立複合索引 (Composite Index)。<br>
+                    請打開瀏覽器控制台 (F12)，點擊 Firebase 產生的錯誤連結來自動建立索引。
+                </td></tr>`;
+            }
+        };
+    </script>
+
+    <!-- 遊戲邏輯 -->
+    <script>
+        let mode = '';
+        let typeLevel = 1; 
+        let timer = null;
+        let timeLeft = 0;
+        
+        let stats = { total: 0, correct: 0, score: 0, consecutive: 0 };
+        let currentQuestion = { num1: 0, num2: 0, ans: 0 };
+        const container = document.getElementById('app-container');
+
+        const typeConfigs = {
+            1: { d1: 1, d2: 1, pts: 10, name: "🌱 一位數 × 一位數" },
+            2: { d1: 2, d2: 1, pts: 20, name: "🌿 兩位數 × 一位數" },
+            3: { d1: 3, d2: 1, pts: 30, name: "🌳 三位數 × 一位數" },
+            4: { d1: 2, d2: 2, pts: 40, name: "🔥 兩位數 × 兩位數" },
+            5: { d1: 3, d2: 2, pts: 50, name: "⚡ 三位數 × 兩位數" }
+        };
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showLeaderboard() {
+            showScreen('leaderboard-screen');
+            if(window.fetchLeaderboard) window.fetchLeaderboard();
+        }
+
+        // 結束練習並返回主選單確認防護
+        function confirmExit() {
+            if (confirm("確定要結束目前的練習嗎？\n⚠️ 未完成的進度及分數將不會儲存喔！")) {
+                clearInterval(timer);
+                showScreen('menu-screen');
+            }
+        }
+
+        function startGame(selectedMode) {
+            if ((selectedMode === 'ranked' || selectedMode === 'timed') && !currentUser) {
+                alert('🏆 必須先點擊上方的「使用 Google 登入」才能遊玩此模式喔！');
+                return;
+            }
+
+            mode = selectedMode;
+            stats = { total: 0, correct: 0, score: 0, consecutive: 0 };
+            typeLevel = parseInt(document.getElementById('question-type').value);
+            
+            document.getElementById('score-display').style.display = (mode === 'ranked' || mode === 'timed') ? 'inline' : 'none';
+            document.getElementById('level-display').style.display = mode === 'ranked' ? 'block' : 'none';
+            
+            if (mode === 'ranked') typeLevel = 1; 
+            
+            updateStatsUI();
+            
+            if (mode === 'infinite') {
+                document.getElementById('time-display').innerText = "♾️ 無限模式";
+                clearInterval(timer);
+            } else {
+                timeLeft = 180; // 現在兩者皆為 3 分鐘 (180 秒)
+                updateTimeUI();
+                clearInterval(timer);
+                timer = setInterval(timerTick, 1000);
+            }
+
+            showScreen('game-screen');
+            inputField.innerText = ''; // 重置虛擬輸入框
+            generateQuestion();
+        }
+
+        function timerTick() {
+            timeLeft--;
+            updateTimeUI();
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                endGame();
+            }
+        }
+
+        function updateTimeUI() {
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            document.getElementById('time-display').innerText = `時間: ${m}:${s.toString().padStart(2, '0')}`;
+            if(timeLeft <= 10 && mode !== 'infinite') {
+                document.getElementById('time-display').style.color = 'var(--secondary)';
+            } else {
+                document.getElementById('time-display').style.color = 'var(--primary)';
+            }
+        }
+
+        function getRandomNum(digits) {
+            const min = Math.pow(10, digits - 1);
+            const max = Math.pow(10, digits) - 1;
+            if (digits === 1) return Math.floor(Math.random() * 8) + 2; 
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function generateQuestion() {
+            const conf = typeConfigs[typeLevel];
+            currentQuestion.num1 = getRandomNum(conf.d1);
+            currentQuestion.num2 = getRandomNum(conf.d2);
+            currentQuestion.ans = currentQuestion.num1 * currentQuestion.num2;
+            
+            document.getElementById('question-text').innerText = `${currentQuestion.num1} × ${currentQuestion.num2}`;
+            if(mode === 'ranked') {
+                document.getElementById('level-display').innerText = `目前難度: ${conf.name}`;
+            }
+        }
+
+        function checkAnswer() {
+            if (inputField.innerText.trim() === '') return;
+            const userAns = parseInt(inputField.innerText);
+            const isCorrect = userAns === currentQuestion.ans;
+            
+            stats.total++;
+            if (isCorrect) {
+                stats.correct++;
+                stats.consecutive++;
+                
+                if (mode === 'ranked' || mode === 'timed') {
+                    stats.score += typeConfigs[typeLevel].pts;
+                }
+                
+                if (mode === 'ranked' && stats.consecutive % 5 === 0 && typeLevel < 5) typeLevel++;
+                
+                triggerFeedback('correct');
+            } else {
+                stats.consecutive = 0; 
+                if (mode === 'ranked' || mode === 'timed') stats.score = Math.max(0, stats.score - 5);
+                triggerFeedback('wrong');
+            }
+            
+            updateStatsUI();
+            inputField.innerText = ''; // 清空答案
+            generateQuestion();
+        }
+
+        function triggerFeedback(type) {
+            container.classList.remove('feedback-correct', 'feedback-wrong');
+            void container.offsetWidth; 
+            container.classList.add(`feedback-${type}`);
+            setTimeout(() => {
+                container.classList.remove(`feedback-${type}`);
+            }, 300);
+        }
+
+        function updateStatsUI() {
+            const acc = stats.total === 0 ? 0 : Math.round((stats.correct / stats.total) * 100);
+            document.getElementById('progress-display').innerText = `答對: ${stats.correct}/${stats.total} (${acc}%)`;
+            document.getElementById('score-display').innerText = `分數: ${stats.score}`;
+        }
+
+        function endGame() {
+            showScreen('result-screen');
+            const acc = stats.total === 0 ? 0 : Math.round((stats.correct / stats.total) * 100);
+            
+            let resultHTML = `
+                總答題數: <b style="color:var(--primary)">${stats.total}</b> 題<br>
+                答對題數: <b style="color:#00b894">${stats.correct}</b> 題<br>
+                準確率: <b>${acc}%</b><br>
+            `;
+            
+            if ((mode === 'ranked' || mode === 'timed') && currentUser) {
+                resultHTML += `<hr style="border:0; border-top:1px solid #ccc; margin:15px 0;"><span style="color:var(--secondary); font-size: 28px; font-weight:900;">最終得分: ${stats.score}</span>`;
+                
+                document.getElementById('upload-section').style.display = 'block';
+                document.getElementById('upload-name-display').innerText = currentUser.lastName;
+                document.getElementById('submit-score-btn').disabled = false;
+                document.getElementById('submit-score-btn').innerText = "🚀 上傳成績";
+                fireConfetti(); 
+            } else {
+                document.getElementById('upload-section').style.display = 'none';
+            }
+            
+            document.getElementById('final-stats').innerHTML = resultHTML;
+        }
+
+        function submitScore() {
+            const stuClass = document.getElementById('class-select').value;
+            const stuNum = document.getElementById('student-num').value;
+            
+            if(!stuNum || stuNum < 1 || stuNum > 40) {
+                alert("⚠️ 請輸入正確的學號 (1-40) !");
+                return;
+            }
+
+            const acc = stats.total === 0 ? 0 : Math.round((stats.correct / stats.total) * 100);
+            
+            const data = {
+                class: stuClass,
+                studentNum: parseInt(stuNum),
+                lastName: currentUser.lastName,
+                googleId: currentUser.id,
+                score: stats.score,
+                accuracy: acc,
+                // 傳遞目前模式與題型資訊給 Firebase 儲存
+                gameMode: mode === 'ranked' ? 'challenge' : 'timed',
+                questionType: mode === 'ranked' ? 0 : typeLevel 
+            };
+
+            if(window.saveToFirebase) {
+                window.saveToFirebase(data);
+            }
+        }
+    </script>
+</body>
+</html>
